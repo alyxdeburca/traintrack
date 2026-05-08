@@ -1,45 +1,34 @@
 # TrainTrack 🚂
 
-A real-time web app displaying Irish Rail trains on Google Maps, with live position updates via WebSocket.
+A real-time web app displaying Irish Rail trains on OpenStreetMap, with live position updates via WebSocket.
 
 ## Features
 
-- **Live train tracking** on Google Maps with real-time position updates
+- **Live train tracking** on OpenStreetMap with real-time position updates
 - **Google Sign-In** authentication
 - **Station markers** showing all Irish Rail stations
 - **Train sidebar** listing all currently running trains
 - **Direction-coded colors** (Northbound, Southbound, etc.)
 - **Responsive design** for desktop and mobile
+- **No API keys needed** for the map (uses free OpenStreetMap tiles)
 
 ## Setup
 
 ### Prerequisites
 
 - Python 3.10+
-- A Google Cloud project with credentials for:
-  - OAuth 2.0 (Web Application)
-  - Google Maps JavaScript API
+- A Google Cloud project with OAuth 2.0 credentials
 
-### 1. Create Google Cloud Credentials
+### 1. Create Google OAuth 2.0 Credentials
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select an existing one
-3. Enable APIs:
-   - Go to **APIs & Services** → **Library**
-   - Search for and enable:
-     - "Maps JavaScript API"
-     - "Identity and Access Management (IAM) API"
-
-4. Create OAuth 2.0 credentials:
+3. Create OAuth 2.0 credentials:
    - Go to **APIs & Services** → **Credentials**
    - Click "Create Credentials" → "OAuth client ID"
    - Application type: **Web Application**
    - Add Authorized redirect URI: `http://localhost:8000`
    - Save the **Client ID**
-
-5. Create a Google Maps API key:
-   - In **Credentials**, click "Create Credentials" → "API Key"
-   - Copy the API key
 
 ### 2. Install Dependencies
 
@@ -59,7 +48,6 @@ cp .env.example .env
 Edit `.env`:
 ```
 GOOGLE_CLIENT_ID=your_oauth_client_id
-GOOGLE_MAPS_API_KEY=your_maps_api_key
 SESSION_SECRET=your_random_secret
 ```
 
@@ -88,8 +76,8 @@ api.irishrail.ie
 
 **Frontend:**
 - `login.html` — Google Sign-In page
-- `index.html` — Main map view with sidebar
-- `app.js` — Map initialization, WebSocket management, marker updates
+- `index.html` — Main map view (Leaflet + OpenStreetMap) with sidebar
+- `app.js` — Leaflet map initialization, WebSocket management, marker updates
 - `style.css` — Responsive styling
 
 **Backend:**
@@ -123,9 +111,6 @@ api.irishrail.ie
 
 **"Invalid token audience" error:**
 - Ensure `GOOGLE_CLIENT_ID` in `.env` matches the one from Google Cloud Console
-
-**"Maps API not loaded" error:**
-- Check that `GOOGLE_MAPS_API_KEY` is valid and the Maps JavaScript API is enabled
 
 **WebSocket connection fails:**
 - Check browser console for CORS or connection errors

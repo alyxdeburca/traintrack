@@ -21,10 +21,9 @@ load_dotenv()
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-in-prod")
-GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
-if not GOOGLE_CLIENT_ID or not GOOGLE_MAPS_API_KEY:
-    raise RuntimeError("GOOGLE_CLIENT_ID and GOOGLE_MAPS_API_KEY env vars required")
+if not GOOGLE_CLIENT_ID:
+    raise RuntimeError("GOOGLE_CLIENT_ID env var required")
 
 serializer = URLSafeTimedSerializer(SESSION_SECRET)
 SESSION_COOKIE_NAME = "session"
@@ -200,13 +199,10 @@ async def websocket_trains(websocket: WebSocket, request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index(request: Request):
-    """Serve index.html with Google Maps API key injected."""
+    """Serve index.html."""
     try:
         with open("../frontend/index.html", "r") as f:
-            template_str = f.read()
-        template = jinja2.Template(template_str)
-        html = template.render(google_maps_api_key=GOOGLE_MAPS_API_KEY)
-        return html
+            return f.read()
     except FileNotFoundError:
         return "<h1>Frontend files not found</h1>"
 

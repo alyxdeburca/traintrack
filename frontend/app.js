@@ -5,8 +5,7 @@ let stationMarkers = {};
 let stations = [];
 let trains = {};
 
-const IRELAND_CENTER = { lat: 53.35, lng: -7.9 };
-const POLL_INTERVAL = 15000;
+const IRELAND_CENTER = [53.35, -7.9];
 
 // Direction to color mapping
 const directionColors = {
@@ -26,26 +25,20 @@ function getColorForDirection(direction) {
 
 function getTrainMarkerIcon(direction) {
     const color = getColorForDirection(direction);
-    return {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: color,
-        fillOpacity: 0.8,
-        strokeColor: "#fff",
-        strokeWeight: 2,
-        scale: 8
-    };
+    return L.divIcon({
+        html: `<div style="background-color: ${color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [16, 16],
+        className: 'train-marker'
+    });
 }
 
 async function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 7,
-        center: IRELAND_CENTER,
-        mapTypeControl: true,
-        fullscreenControl: true,
-        styles: [
-            { featureType: "water", elementType: "geometry", stylers: [{ color: "#e9e9e9" }] }
-        ]
-    });
+    map = L.map('map').setView(IRELAND_CENTER, 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
 
     // Load stations from API
     try {
@@ -70,19 +63,14 @@ async function initMap() {
 
 function renderStationMarkers() {
     stations.forEach(station => {
-        const marker = new google.maps.Marker({
-            position: { lat: station.lat, lng: station.lng },
-            map: map,
-            title: station.desc,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: "#95A5A6",
-                fillOpacity: 0.6,
-                strokeColor: "#fff",
-                strokeWeight: 1,
-                scale: 4
-            }
-        });
+        const marker = L.circleMarker([station.lat, station.lng], {
+            radius: 5,
+            fillColor: "#95A5A6",
+            color: "#fff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.6
+        }).bindTooltip(station.desc, { permanent: false }).addTo(map);
         stationMarkers[station.code] = marker;
     });
 }
@@ -148,16 +136,13 @@ function updateTrainMarker(train) {
     if (!train.lat || !train.lng) return;
 
     if (trainMarkers[train.code]) {
-        trainMarkers[train.code].setPosition({ lat: train.lat, lng: train.lng });
+        trainMarkers[train.code].setLatLng([train.lat, train.lng]);
     } else {
-        const marker = new google.maps.Marker({
-            position: { lat: train.lat, lng: train.lng },
-            map: map,
-            title: train.code,
+        const marker = L.marker([train.lat, train.lng], {
             icon: getTrainMarkerIcon(train.direction)
-        });
+        }).addTo(map);
 
-        marker.addListener("click", () => {
+        marker.on('click', () => {
             showTrainInfo(train);
         });
 
@@ -211,8 +196,7 @@ function renderTrainsList() {
         const train = trainList[idx];
         el.addEventListener("click", () => {
             if (trainMarkers[train.code]) {
-                map.panTo(trainMarkers[train.code].getPosition());
-                map.setZoom(10);
+                map.setView(trainMarkers[train.code].getLatLng(), 10);
             }
             showTrainInfo(train);
         });
