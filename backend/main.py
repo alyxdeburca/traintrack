@@ -4,30 +4,16 @@ from typing import Optional
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from google.auth.transport.requests import Request as GoogleRequest
-from google.oauth2 import id_token
-from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
-import jinja2
 
 from irishrail import get_all_stations, get_current_trains, get_train_movements
 
 load_dotenv()
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-in-prod")
-
-if not GOOGLE_CLIENT_ID:
-    raise RuntimeError("GOOGLE_CLIENT_ID env var required")
-
-serializer = URLSafeTimedSerializer(SESSION_SECRET)
-SESSION_COOKIE_NAME = "session"
-SESSION_COOKIE_MAX_AGE = 7 * 24 * 60 * 60
 
 
 class WSConnectionManager:
@@ -99,75 +85,15 @@ except:
     pass
 
 
-class GoogleTokenRequest(BaseModel):
-    token: str
-
-
-def get_session_user(request: Request) -> Optional[dict]:
-    """Extract and validate session cookie."""
-    session_cookie = request.cookies.get(SESSION_COOKIE_NAME)
-    if not session_cookie:
-        return None
-    try:
-        user = serializer.loads(session_cookie, max_age=SESSION_COOKIE_MAX_AGE)
-        return user
-    except Exception:
-        return None
-
-
-async def require_auth(request: Request) -> dict:
-    user = get_session_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    return user
-
-
-@app.get("/auth/me")
-async def get_user(user: dict = Depends(require_auth)):
-    return user
-
-
-@app.post("/auth/google")
-async def google_auth(req: GoogleTokenRequest, response: Response):
-    try:
-        google_request = GoogleRequest()
-        info = id_token.verify_oauth2_token(req.token, google_request, GOOGLE_CLIENT_ID)
-
-        if info["aud"] != GOOGLE_CLIENT_ID:
-            raise HTTPException(status_code=400, detail="Invalid token audience")
-
-        user_data = {
-            "email": info.get("email"),
-            "name": info.get("name"),
-            "picture": info.get("picture"),
-        }
-
-        session_token = serializer.dumps(user_data)
-        response.set_cookie(
-            SESSION_COOKIE_NAME,
-            session_token,
-            max_age=SESSION_COOKIE_MAX_AGE,
-            httponly=True,
-            samesite="lax"
-        )
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Auth failed: {str(e)}")
-
-
-@app.post("/auth/logout")
-async def logout(response: Response):
-    response.delete_cookie(SESSION_COOKIE_NAME)
-    return {"success": True}
 
 
 @app.get("/stations")
-async def get_stations(user: dict = Depends(require_auth)):
+async def get_stations():
     return {"stations": stations_cache}
 
 
 @app.get("/train/{code}/movements")
-async def get_movements(code: str, date: str, user: dict = Depends(require_auth)):
+async def get_movements(code: str, date: str):
     try:
         movements = await get_train_movements(code, date)
         return {"movements": movements}
@@ -176,12 +102,7 @@ async def get_movements(code: str, date: str, user: dict = Depends(require_auth)
 
 
 @app.websocket("/ws/trains")
-async def websocket_trains(websocket: WebSocket, request: Request):
-    user = get_session_user(request)
-    if not user:
-        await websocket.close(code=1008, reason="Unauthorized")
-        return
-
+async def websocket_trains(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         await websocket.send_json({
@@ -205,19 +126,6 @@ async def get_index(request: Request):
             return f.read()
     except FileNotFoundError:
         return "<h1>Frontend files not found</h1>"
-
-
-@app.get("/login", response_class=HTMLResponse)
-async def get_login(request: Request):
-    """Serve login.html with Google Client ID injected."""
-    try:
-        with open("../frontend/login.html", "r") as f:
-            template_str = f.read()
-        template = jinja2.Template(template_str)
-        html = template.render(google_client_id=GOOGLE_CLIENT_ID)
-        return html
-    except FileNotFoundError:
-        return "<h1>Login page not found</h1>"
 
 
 @app.get("/app.js")

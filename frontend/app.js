@@ -43,10 +43,6 @@ async function initMap() {
     // Load stations from API
     try {
         const resp = await fetch("/stations");
-        if (resp.status === 401) {
-            window.location.href = "/login";
-            return;
-        }
         const data = await resp.json();
         stations = data.stations || [];
         renderStationMarkers();
@@ -56,9 +52,6 @@ async function initMap() {
 
     // Connect WebSocket
     connectWebSocket();
-
-    // Load user info
-    loadUserInfo();
 }
 
 function renderStationMarkers() {
@@ -202,26 +195,6 @@ function renderTrainsList() {
         });
     });
 }
-
-async function loadUserInfo() {
-    try {
-        const resp = await fetch("/auth/me");
-        if (resp.ok) {
-            const user = await resp.json();
-            document.getElementById("user-name").textContent = user.name || user.email;
-            if (user.picture) {
-                document.getElementById("user-avatar").src = user.picture;
-            }
-        }
-    } catch (err) {
-        console.error("Failed to load user info:", err);
-    }
-}
-
-document.getElementById("logout-btn")?.addEventListener("click", async () => {
-    await fetch("/auth/logout", { method: "POST" });
-    window.location.href = "/login";
-});
 
 document.querySelector(".close-btn")?.addEventListener("click", () => {
     document.getElementById("info-window").style.display = "none";
