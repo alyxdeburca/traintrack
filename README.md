@@ -32,14 +32,16 @@ cd backend
 python -m uvicorn main:app --reload
 ```
 
-The app will be available at `http://localhost:8000`
+The app will be available at `http://localhost` (port 80)
+
+**Note:** Port 80 requires elevated privileges. Run with `sudo` or use a reverse proxy for production.
 
 ## How It Works
 
 ### Architecture
 
 ```
-Browser (HTML/JS + Google Maps)
+Browser (HTML/JS + Leaflet/OpenStreetMap)
     ↕ WebSocket (/ws/trains)
 FastAPI Backend
     ↕ HTTP polling (every 15s)
@@ -80,7 +82,7 @@ api.irishrail.ie
 
 **WebSocket connection fails:**
 - Check browser console for connection errors
-- Ensure backend is running and accessible at `localhost:8000`
+- Ensure backend is running and accessible at `localhost` (port 80)
 
 **No trains visible:**
 - The Irish Rail API may not have trains running (late night/early morning)
