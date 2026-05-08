@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrainTrack — Live Irish Rail</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div id="header">
+        <div class="header-left">
+            <h1>🚂 TrainTrack</h1>
+        </div>
+        <div class="header-right">
+            <div id="user-info" class="user-info">
+                <img id="user-avatar" src="" alt="avatar">
+                <span id="user-name"></span>
+                <button id="logout-btn">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="container">
+        <div id="sidebar">
+            <h2>Trains</h2>
+            <div id="trains-list" class="trains-list">
+                <p class="loading-text">Loading trains...</p>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div id="info-window" class="info-window" style="display: none;">
+        <button class="close-btn">&times;</button>
+        <div id="info-content"></div>
+    </div>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

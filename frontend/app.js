@@ -1,0 +1,259 @@
+let map;
+let ws;
+let trainMarkers = {};
+let stationMarkers = {};
+let stations = [];
+let trains = {};
+
+const IRELAND_CENTER = { lat: 53.35, lng: -7.9 };
+const POLL_INTERVAL = 15000;
+
+// Direction to color mapping
+const directionColors = {
+    "Northbound": "#FF6B6B",
+    "Southbound": "#4ECDC4",
+    "Eastbound": "#45B7D1",
+    "Westbound": "#FFA07A",
+    "Dublin": "#9B59B6",
+    "Cork": "#E74C3C",
+    "Galway": "#3498DB",
+    "Limerick": "#F39C12",
+};
+
+function getColorForDirection(direction) {
+    return directionColors[direction] || "#2C3E50";
+}
+
+function getTrainMarkerIcon(direction) {
+    const color = getColorForDirection(direction);
+    return {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: color,
+        fillOpacity: 0.8,
+        strokeColor: "#fff",
+        strokeWeight: 2,
+        scale: 8
+    };
+}
+
+async function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 7,
+        center: IRELAND_CENTER,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        styles: [
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#e9e9e9" }] }
+        ]
+    });
+
+    // Load stations from API
+    try {
+        const resp = await fetch("/stations");
+        if (resp.status === 401) {
+            window.location.href = "/login";
+            return;
+        }
+        const data = await resp.json();
+        stations = data.stations || [];
+        renderStationMarkers();
+    } catch (err) {
+        console.error("Failed to load stations:", err);
+    }
+
+    // Connect WebSocket
+    connectWebSocket();
+
+    // Load user info
+    loadUserInfo();
+}
+
+function renderStationMarkers() {
+    stations.forEach(station => {
+        const marker = new google.maps.Marker({
+            position: { lat: station.lat, lng: station.lng },
+            map: map,
+            title: station.desc,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: "#95A5A6",
+                fillOpacity: 0.6,
+                strokeColor: "#fff",
+                strokeWeight: 1,
+                scale: 4
+            }
+        });
+        stationMarkers[station.code] = marker;
+    });
+}
+
+function connectWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${protocol}//${window.location.host}/ws/trains`);
+
+    ws.onopen = () => {
+        console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "initial") {
+            trains = {};
+            data.trains.forEach(t => trains[t.code] = t);
+            renderTrainMarkers(data.trains);
+        } else if (data.type === "trains_update") {
+            updateTrains(data.trains);
+        }
+    };
+
+    ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        // Attempt reconnect
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onclose = () => {
+        console.log("WebSocket closed, reconnecting...");
+        setTimeout(connectWebSocket, 5000);
+    };
+}
+
+function renderTrainMarkers(trainList) {
+    trainList.forEach(train => {
+        updateTrainMarker(train);
+    });
+}
+
+function updateTrains(trainList) {
+    // Update existing markers and create new ones
+    const newTrainCodes = new Set(trainList.map(t => t.code));
+    trainList.forEach(train => {
+        updateTrainMarker(train);
+        trains[train.code] = train;
+    });
+
+    // Remove stale markers
+    Object.keys(trainMarkers).forEach(code => {
+        if (!newTrainCodes.has(code)) {
+            trainMarkers[code].setMap(null);
+            delete trainMarkers[code];
+            delete trains[code];
+        }
+    });
+
+    renderTrainsList();
+}
+
+function updateTrainMarker(train) {
+    if (!train.lat || !train.lng) return;
+
+    if (trainMarkers[train.code]) {
+        trainMarkers[train.code].setPosition({ lat: train.lat, lng: train.lng });
+    } else {
+        const marker = new google.maps.Marker({
+            position: { lat: train.lat, lng: train.lng },
+            map: map,
+            title: train.code,
+            icon: getTrainMarkerIcon(train.direction)
+        });
+
+        marker.addListener("click", () => {
+            showTrainInfo(train);
+        });
+
+        trainMarkers[train.code] = marker;
+    }
+}
+
+function showTrainInfo(train) {
+    const infoWindow = document.getElementById("info-window");
+    const infoContent = document.getElementById("info-content");
+    const direction = train.direction || "Unknown";
+    const color = getColorForDirection(direction);
+
+    infoContent.innerHTML = `
+        <div style="color: ${color}; font-weight: bold; margin-bottom: 10px;">
+            Train ${train.code}
+        </div>
+        <div><strong>Direction:</strong> ${direction}</div>
+        <div><strong>Status:</strong> ${train.status || "Unknown"}</div>
+        <div><strong>Message:</strong> ${train.message || "No message"}</div>
+        <div style="font-size: 12px; color: #999; margin-top: 10px;">
+            ${train.date || ""}
+        </div>
+    `;
+    infoWindow.style.display = "block";
+}
+
+function renderTrainsList() {
+    const list = document.getElementById("trains-list");
+    const trainList = Object.values(trains).sort((a, b) => (a.code || "").localeCompare(b.code || ""));
+
+    if (trainList.length === 0) {
+        list.innerHTML = "<p class='loading-text'>No trains running</p>";
+        return;
+    }
+
+    list.innerHTML = trainList.map(train => {
+        const direction = train.direction || "Unknown";
+        const color = getColorForDirection(direction);
+        return `
+            <div class="train-item" style="border-left: 4px solid ${color}">
+                <strong>${train.code}</strong>
+                <div style="font-size: 12px; color: #666;">
+                    ${direction} • ${train.status || "Running"}
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    document.querySelectorAll(".train-item").forEach((el, idx) => {
+        const train = trainList[idx];
+        el.addEventListener("click", () => {
+            if (trainMarkers[train.code]) {
+                map.panTo(trainMarkers[train.code].getPosition());
+                map.setZoom(10);
+            }
+            showTrainInfo(train);
+        });
+    });
+}
+
+async function loadUserInfo() {
+    try {
+        const resp = await fetch("/auth/me");
+        if (resp.ok) {
+            const user = await resp.json();
+            document.getElementById("user-name").textContent = user.name || user.email;
+            if (user.picture) {
+                document.getElementById("user-avatar").src = user.picture;
+            }
+        }
+    } catch (err) {
+        console.error("Failed to load user info:", err);
+    }
+}
+
+document.getElementById("logout-btn")?.addEventListener("click", async () => {
+    await fetch("/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+});
+
+document.querySelector(".close-btn")?.addEventListener("click", () => {
+    document.getElementById("info-window").style.display = "none";
+});
+
+// Close info window when clicking outside
+document.addEventListener("click", (e) => {
+    const infoWindow = document.getElementById("info-window");
+    if (!infoWindow.contains(e.target) && !e.target.closest(".train-item") && !e.target.closest(".gm-ui-hover-effect")) {
+        infoWindow.style.display = "none";
+    }
+});
+
+// Initialize on DOM ready
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMap);
+} else {
+    initMap();
+}
