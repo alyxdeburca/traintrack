@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 BASE_URL = "http://api.irishrail.ie/realtime/realtime.asmx"
+NS = {"ns": "http://api.irishrail.ie/realtime/"}
 
 
 async def get_all_stations() -> list[dict]:
@@ -12,15 +13,15 @@ async def get_all_stations() -> list[dict]:
         resp.raise_for_status()
         root = ET.fromstring(resp.text)
         stations = []
-        for station_elem in root.findall(".//Station"):
+        for station_elem in root.findall(".//ns:Station", NS):
             try:
                 stations.append({
-                    "code": station_elem.findtext("StationCode", ""),
-                    "desc": station_elem.findtext("StationDesc", ""),
-                    "id": station_elem.findtext("StationId", ""),
-                    "alias": station_elem.findtext("StationAlias", ""),
-                    "lat": float(station_elem.findtext("StationLatitude", "0") or "0"),
-                    "lng": float(station_elem.findtext("StationLongitude", "0") or "0"),
+                    "code": station_elem.findtext("ns:StationCode", "", NS),
+                    "desc": station_elem.findtext("ns:StationDesc", "", NS),
+                    "id": station_elem.findtext("ns:StationId", "", NS),
+                    "alias": station_elem.findtext("ns:StationAlias", "", NS),
+                    "lat": float(station_elem.findtext("ns:StationLatitude", "0", NS) or "0"),
+                    "lng": float(station_elem.findtext("ns:StationLongitude", "0", NS) or "0"),
                 })
             except (ValueError, TypeError):
                 continue
@@ -33,22 +34,22 @@ async def get_current_trains() -> list[dict]:
         resp.raise_for_status()
         root = ET.fromstring(resp.text)
         trains = []
-        for train_elem in root.findall(".//Train"):
+        for train_elem in root.findall(".//ns:objTrainPositions", NS):
             try:
-                lat_str = train_elem.findtext("TrainLatitude", "0") or "0"
-                lng_str = train_elem.findtext("TrainLongitude", "0") or "0"
+                lat_str = train_elem.findtext("ns:TrainLatitude", "0", NS) or "0"
+                lng_str = train_elem.findtext("ns:TrainLongitude", "0", NS) or "0"
                 lat = float(lat_str)
                 lng = float(lng_str)
                 if lat == 0 or lng == 0:
                     continue
                 trains.append({
-                    "code": train_elem.findtext("TrainCode", ""),
-                    "status": train_elem.findtext("TrainStatus", ""),
+                    "code": train_elem.findtext("ns:TrainCode", "", NS),
+                    "status": train_elem.findtext("ns:TrainStatus", "", NS),
                     "lat": lat,
                     "lng": lng,
-                    "date": train_elem.findtext("TrainDate", ""),
-                    "message": train_elem.findtext("PublicMessage", ""),
-                    "direction": train_elem.findtext("Direction", ""),
+                    "date": train_elem.findtext("ns:TrainDate", "", NS),
+                    "message": train_elem.findtext("ns:PublicMessage", "", NS),
+                    "direction": train_elem.findtext("ns:Direction", "", NS),
                 })
             except (ValueError, TypeError):
                 continue
@@ -65,11 +66,11 @@ async def get_train_movements(train_code: str, train_date: str) -> list[dict]:
         resp.raise_for_status()
         root = ET.fromstring(resp.text)
         movements = []
-        for move_elem in root.findall(".//TrainMovement"):
+        for move_elem in root.findall(".//ns:TrainMovement", NS):
             movements.append({
-                "station": move_elem.findtext("StationDesc", ""),
-                "arrival": move_elem.findtext("ArrivalTime", ""),
-                "departure": move_elem.findtext("DepartureTime", ""),
-                "status": move_elem.findtext("ScheduleArrival", ""),
+                "station": move_elem.findtext("ns:StationDesc", "", NS),
+                "arrival": move_elem.findtext("ns:ArrivalTime", "", NS),
+                "departure": move_elem.findtext("ns:DepartureTime", "", NS),
+                "status": move_elem.findtext("ns:ScheduleArrival", "", NS),
             })
         return movements

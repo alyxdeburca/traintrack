@@ -135,7 +135,8 @@ function updateTrainMarker(train) {
             icon: getTrainMarkerIcon(train.direction)
         }).addTo(map);
 
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+            L.DomEvent.stop(e);
             showTrainInfo(train);
         });
 
@@ -155,7 +156,7 @@ function showTrainInfo(train) {
         </div>
         <div><strong>Direction:</strong> ${direction}</div>
         <div><strong>Status:</strong> ${train.status || "Unknown"}</div>
-        <div><strong>Message:</strong> ${train.message || "No message"}</div>
+        <div><strong>Message:</strong> ${(train.message || "No message").replace(/\\n/g, "<br>")}</div>
         <div style="font-size: 12px; color: #999; margin-top: 10px;">
             ${train.date || ""}
         </div>
@@ -203,7 +204,8 @@ document.querySelector(".close-btn")?.addEventListener("click", () => {
 // Close info window when clicking outside
 document.addEventListener("click", (e) => {
     const infoWindow = document.getElementById("info-window");
-    if (!infoWindow.contains(e.target) && !e.target.closest(".train-item") && !e.target.closest(".gm-ui-hover-effect")) {
+    const isLabelOrIcon = e.target.closest(".leaflet-marker-icon") || e.target.closest(".leaflet-popup") || e.target.closest(".train-marker");
+    if (!isLabelOrIcon && !infoWindow.contains(e.target) && !e.target.closest(".train-item")) {
         infoWindow.style.display = "none";
     }
 });
