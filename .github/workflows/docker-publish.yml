@@ -36,8 +36,3 @@ jobs:
             ghcr.io/alyxdeburca/traintrack:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Logout from GitHub Container Registry
-        uses: docker/logout-action@v3
-        with:
-          registry: ghcr.io
