@@ -1,0 +1,14 @@
+services:
+  traintrack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "35000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost/stations || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

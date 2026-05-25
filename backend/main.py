@@ -80,7 +80,7 @@ app = FastAPI(lifespan=lifespan)
 
 # Mount static files
 try:
-    app.mount("/static", StaticFiles(directory="../frontend"), name="static")
+    app.mount("/static", StaticFiles(directory="./frontend"), name="static")
 except:
     pass
 
@@ -122,7 +122,7 @@ async def websocket_trains(websocket: WebSocket):
 async def get_index(request: Request):
     """Serve index.html."""
     try:
-        with open("../frontend/index.html", "r") as f:
+        with open("./frontend/index.html", "r") as f:
             return f.read()
     except FileNotFoundError:
         return "<h1>Frontend files not found</h1>"
@@ -131,7 +131,7 @@ async def get_index(request: Request):
 @app.get("/app.js")
 async def get_app_js():
     try:
-        return FileResponse("../frontend/app.js", media_type="application/javascript")
+        return FileResponse("./frontend/app.js", media_type="application/javascript")
     except FileNotFoundError:
         return {"error": "app.js not found"}
 
@@ -139,7 +139,7 @@ async def get_app_js():
 @app.get("/style.css")
 async def get_style_css():
     try:
-        return FileResponse("../frontend/style.css", media_type="text/css")
+        return FileResponse("./frontend/style.css", media_type="text/css")
     except FileNotFoundError:
         return {"error": "style.css not found"}
 
